@@ -1,5 +1,5 @@
 """
-This is a library for the Adafruit Sound Boards in UART mode.
+This is a MicroPython library for the Adafruit Sound Boards in UART mode!
 
 This library has been adapted from the library written by Adafruit for Arduino,
 available at https://github.com/adafruit/Adafruit_Soundboard_library. I have no
