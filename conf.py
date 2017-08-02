@@ -22,6 +22,7 @@ intersphinx_mapping = {'python': ('https://docs.python.org/3.4', None),
 # Show the docstring from both the class and its __init__() method
 autoclass_content = 'both'
 autodoc_member_order = 'bysource'
+autodoc_mock_imports = ['machine', 'utime']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
