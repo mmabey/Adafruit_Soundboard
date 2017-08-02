@@ -1,28 +1,40 @@
 Adafruit Soundboard Library
 ===========================
 
-.. main_intro
-
-|ports| |docs| |license_type|
+|ports| |docs| |ci| |license_type|
 
 The `Adafruit Soundboards <https://learn.adafruit.com/adafruit-audio-fx-sound-board>`_ are an easy way to add sound to
 your maker project, but the `library <https://github.com/adafruit/Adafruit_Soundboard_library>`_ provided by Adafruit
 only supports Arduino.
 
-If you've wanted to use one of these boards with a `MicroPython <http://micropython.org/>`_ microcontroller (MCU), this
-is the library you've been looking for.
+If you've wanted to use one of these boards with a `MicroPython <http://micropython.org/>`_ or `CircuitPython
+<https://github.com/adafruit/circuitpython>`_ microcontroller (MCU), this is the library you've been looking for.
 
 
 Installation
 ------------
 
-At this time, you have to install the library by copying the |soundboard|_ to your MicroPython board along
+This driver depends on either `MicroPython <http://micropython.org/>`_ or `CircuitPython
+<https://github.com/adafruit/circuitpython>`_ and is intended for use to control one of the `Adafruit Audio FX
+<https://www.adafruit.com/?q=Adafruit%20Audio%20FX&>`_ boards via UART.
+
+Make sure to get the latest version of the code from `GitHub`_.
+
+CircuitPython Instructions
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+First, you'll need to get `Adafruit CircuitPython <https://github.com/adafruit/circuitpython>`_. Then, please ensure
+all dependencies are available on the CircuitPython filesystem. This is easily achieved by downloading
+`the Adafruit library and driver bundle <https://github.com/adafruit/Adafruit_CircuitPython_Bundle>`_.
+
+MicroPython Instructions
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+At this time, you have to install the driver by copying the |soundboard|_ to your MicroPython board along
 with your ``main.py`` file. At some point in the future it may be possible to ``pip install`` it.
 
 .. |soundboard| replace:: ``soundboard.py`` script
 .. _soundboard: https://github.com/mmabey/Adafruit_Soundboard/blob/master/src/soundboard.py
-
-Make sure to get the latest version of the code from `GitHub`_.
 
 
 Quick Start
@@ -89,12 +101,21 @@ You can also control the volume in several different ways:
     sound.vol = 0.75
 
 
-Documentation
+API Reference
 -------------
 
-.. end_main_intro
+.. toctree::
+:maxdepth: 2
 
-Please view the full documentation for this project on `Read the Docs`_.
+       api
+
+
+Contributing
+------------
+
+Contributions are welcome! Please read our `Code of Conduct
+<https://github.com/adafruit/Adafruit_CircuitPython_soundboard/blob/master/CODE_OF_CONDUCT.md>`_
+before contributing to help this project stay welcoming.
 
 
 License
@@ -103,8 +124,6 @@ License
 This project is licensed under the `MIT License <https://github.com/mmabey/Adafruit_Soundboard/blob/master/LICENSE>`_.
 
 
-.. begin_import
-
 .. |ports| image:: https://img.shields.io/badge/MicroPython%20Ports-pyboard,%20wipy,%20esp8266-lightgrey.svg
     :alt: Supported ports: pyboard, wipy, esp8266
     :target: `GitHub`_
@@ -112,6 +131,10 @@ This project is licensed under the `MIT License <https://github.com/mmabey/Adafr
 .. |docs| image:: https://readthedocs.org/projects/adafruit-soundboard/badge/
     :alt: Documentation Status
     :target: `Read the Docs`_
+
+.. |ci| image:: https://travis-ci.org/mmabey/Adafruit_Soundboard.svg
+    :alt: CI Build Status
+    :target: https://travis-ci.org/mmabey/Adafruit_Soundboard
 
 .. |license_type| image:: https://img.shields.io/github/license/mmabey/Adafruit_Soundboard.svg
     :alt: License: MIT
