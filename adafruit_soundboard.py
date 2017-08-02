@@ -20,9 +20,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 """
-`adafruit_soundboard`
-====================================================
-
 This is a MicroPython library for the Adafruit Sound Boards in UART mode!
 
 This library has been adapted from the library written by Adafruit for Arduino,

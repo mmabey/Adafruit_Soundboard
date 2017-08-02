@@ -1,4 +1,8 @@
-.. automodule:: soundboard
+=====================
+`adafruit_soundboard`
+=====================
+
+.. automodule:: adafruit_soundboard
    :members:
 
    .. py:data:: SB_BAUD

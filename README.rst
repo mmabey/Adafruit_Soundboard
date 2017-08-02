@@ -52,9 +52,9 @@ Then, create an instance of the :class:`~soundboard.Soundboard` class, like this
     sound = Soundboard('XB')
 
 I *highly* recommend you also attach the ``RST`` pin on the soundboard to one of the other GPIO pins on the MCU (pin
-`X11` in the example). Also, my alternative method of getting the list of files from the board is more stable (in my own
-testing) than the method built-in to the soundboard. Also, I like getting the debug output and I turn the volume down to
-50% while I'm coding. Doing all this looks like the following:
+``X11`` in the example). Also, my alternative method of getting the list of files from the board is more stable (in my
+own testing) than the method built-in to the soundboard. Also, I like getting the debug output and I turn the volume
+down to 50% while I'm coding. Doing all this looks like the following:
 
 ::
 
