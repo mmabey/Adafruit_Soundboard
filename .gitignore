@@ -101,6 +101,4 @@ ENV/
 .mypy_cache/
 .idea
 *.bak
-machine.py
-utime.py
 _build
