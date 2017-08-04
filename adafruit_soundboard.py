@@ -20,27 +20,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 """
-This is a MicroPython library for the Adafruit Sound Boards in UART mode!
+A MicroPython library for the Adafruit Sound Boards in UART mode!
 
 This library has been adapted from the library written by Adafruit for Arduino,
-available at https://github.com/adafruit/Adafruit_Soundboard_library. I have no
-affiliation with Adafruit, and they have not sponsored or approved this library
-in any way. As such, please do not contact them for support regarding this
-library.
-
-Commands the sound board understands (at least the ones I could discern from
-the Arduino library) are as follows:
-
-- ``L``: List files on the board
-- ``#``: Play a file by number
-- ``P``: Play a file by name
-- ``+``: Volume up. Range is 0-204, increments of 2.
-- ``-``: Volume down
-- ``=``: Pause playback
-- ``>``: Un-pause playback
-- ``q``: Stop playback
-- ``t``: Give current position of playback and total time of track
-- ``s``: Current track size and total size
+available at https://github.com/adafruit/Adafruit_Soundboard_library.
 
 * Author(s): Mike Mabey
 """
@@ -78,9 +61,9 @@ class Soundboard:
     information about the sound files on the sound board and control playback.
 
     If you need to reset the sound board from your MicroPython code, be
-    sure to provide the ``rst_pin`` parameter. The soundboard sometimes gets
+    sure to provide the ``rst_pin`` parameter. The sound board sometimes gets
     out of UART mode and reverts to the factory default of GPIO trigger
-    mode. When this happens, it will appear as if the soundboard has
+    mode. When this happens, it will appear as if the sound board has
     stoped working for no apparent reason. This library is designed to
     automatically attempt resetting the board if a command fails, since
     that is a common cause. So, it is a good idea to provide this
@@ -135,10 +118,6 @@ class Soundboard:
         if alt_get_files:
             self.use_alt_get_files()
 
-        # Get the track lengths (also retrieves the list of files) TODO
-        # print('Getting track lengths. This will take a couple seconds.')
-        # self._get_lengths()
-
     def _flush_uart_input(self):
         """Read any available data from the UART bus until none is left."""
         while self._uart.any():
@@ -146,6 +125,19 @@ class Soundboard:
 
     def _send_simple(self, cmd, check=None, strip=True):
         """Send the command, optionally do a check on the output.
+
+        The sound board understands the following commands:
+
+        - ``L``: List files on the board
+        - ``#``: Play a file by number
+        - ``P``: Play a file by name
+        - ``+``: Volume up (range is 0-204, increments of 2)
+        - ``-``: Volume down
+        - ``=``: Pause playback
+        - ``>``: Un-pause playback
+        - ``q``: Stop playback
+        - ``t``: Give current position of playback and total time of track
+        - ``s``: Current track size and total size
 
         :param cmd: Command to send over the UART bus. A newline character will
             be appended to the command before sending it, so it's not necessary
@@ -466,7 +458,7 @@ class Soundboard:
         """Return the remaining size and total size.
 
         It seems the remaining track size refers to the number of bytes left
-        for the soundboard to process before the playing of the track will be
+        for the sound board to process before the playing of the track will be
         over.
 
         :return: Remaining track size and total size
@@ -495,7 +487,7 @@ class Soundboard:
         .. seealso::
 
             `Soundboard Pinout <https://learn.adafruit.com/adafruit-audio-fx-sound-board/pinouts#uart-pins>`_
-                Documentation on the soundboards' pinouts.
+                Documentation on the sound boards' pinouts.
 
 
         :return: Whether the reset was successful. If the reset pin was not
@@ -521,10 +513,10 @@ class Soundboard:
 
         sleep_ms(1000)  # Give the board some time to boot
         msg = self._uart.readline().strip()
-        printif(msg)  # Date and name
+        printif(msg)  # Blank line
 
         msg = self._uart.readline().strip()
-        printif('Document what this line is: >{}<'.format(msg))  # ? # TODO
+        printif(msg)  # Date and name
 
         if not msg.startswith('Adafruit FX Sound Board'):
             return False
@@ -546,8 +538,8 @@ class Soundboard:
     def use_alt_get_files(self, now=False):
         """Get list of track files using an alternate method.
 
-        If the list of files is missing tracks you know are on the soundboard,
-        try calling this method. It doesn't depend on the soundboard's internal
+        If the list of files is missing tracks you know are on the sound board,
+        try calling this method. It doesn't depend on the sound board's internal
         command for returning a list of files. Instead, it plays each of the
         tracks using their track numbers and gets the filename and size from
         the output of the play command.
