@@ -1,2 +1,3 @@
 requirements_file: requirements.txt
-
+formats:
+  - none  # Don't build any extra formats

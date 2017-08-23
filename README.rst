@@ -1,7 +1,7 @@
 Adafruit Soundboard Library
 ===========================
 
-|ports| |docs| |ci| |license_type|
+|ports| |docs| |version| |ci| |license_type|
 
 The `Adafruit Soundboards <https://learn.adafruit.com/adafruit-audio-fx-sound-board>`_ are an easy way to add sound to
 your maker project, but the `library <https://github.com/adafruit/Adafruit_Soundboard_library>`_ provided by Adafruit
@@ -131,6 +131,10 @@ This project is licensed under the `MIT License <https://github.com/mmabey/Adafr
 .. |docs| image:: https://readthedocs.org/projects/adafruit-soundboard/badge/
     :alt: Documentation Status
     :target: `Read the Docs`_
+
+.. |version| image:: https://img.shields.io/github/release/mmabey/Adafruit_Soundboard/all.svg
+    :alt: Release Version
+    :target: https://github.com/mmabey/Adafruit_Soundboard
 
 .. |ci| image:: https://travis-ci.org/mmabey/Adafruit_Soundboard.svg
     :alt: CI Build Status

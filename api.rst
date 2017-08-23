@@ -22,8 +22,7 @@
 
    .. py:data:: MAX_FILES
 
-      In the Arduino version of this library, it defines the max number of
-      files to be 25.
+      The Arduino version of this library defines the max number of files to be 25.
 
    .. py:data:: DEBUG
 
