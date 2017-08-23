@@ -20,7 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 """
-A MicroPython library for the Adafruit Sound Boards in UART mode!
+A CircuitPython library for the Adafruit Sound Boards in UART mode!
 
 This library has been adapted from the library written by Adafruit for Arduino,
 available at https://github.com/adafruit/Adafruit_Soundboard_library.
@@ -28,23 +28,14 @@ available at https://github.com/adafruit/Adafruit_Soundboard_library.
 * Author(s): Mike Mabey
 """
 
-from machine import UART, Pin
-from sys import platform as BOARD
+import board
+from busio import UART
+from digitalio import DigitalInOut as Dio, DriveMode
+from time import sleep
 
 __author__ = 'Mike Mabey'
 __license__ = 'MIT'
 __copyright_ = 'Copyright 2017, Mike Mabey'
-
-ESP8266 = 'esp8266'
-PYBOARD = 'pyboard'
-WIPY = 'wipy'
-
-try:
-    # Should be supported by all 3 supported boards
-    from utime import sleep_ms
-except ImportError:
-    _supported = ', '.join([ESP8266, PYBOARD, WIPY])
-    raise OSError('Unsupported board. Currently only works with {}.'.format(_supported))
 
 SB_BAUD = 9600  # Baud rate of the sound boards
 MIN_VOL = 0
@@ -57,10 +48,13 @@ class Soundboard:
     """Control an Adafruit Sound Board via UART.
 
     The :class:`Soundboard` class handles all communication with the sound
-    board via :ref:`UART <upy:machine.UART>`, making it easy to get
-    information about the sound files on the sound board and control playback.
+    board via `UART`_, making it easy to get information about the sound files
+    on the sound board and control playback.
 
-    If you need to reset the sound board from your MicroPython code, be
+    .. |UART| replace:: ``UART``
+    .. _UART: https://circuitpython.readthedocs.io/en/latest/shared-bindings/busio/UART.html
+
+    If you need to reset the sound board from your CircuitPython code, be
     sure to provide the ``rst_pin`` parameter. The sound board sometimes gets
     out of UART mode and reverts to the factory default of GPIO trigger
     mode. When this happens, it will appear as if the sound board has
@@ -70,14 +64,17 @@ class Soundboard:
     parameter.
     """
 
-    def __init__(self, uart_id, rst_pin=None, vol=None, alt_get_files=False, debug=None, **uart_kwargs):
+    def __init__(self, uart_tx, uart_rx, rst_pin=None, *, vol=None, alt_get_files=False, debug=None, **uart_kwargs):
         """
-        :param uart_id: ID for the :ref:`UART <upy:machine.UART>` bus to use.
-            Acceptable values vary by board. Check the documentation for your
-            board for more info.
-        :param rst_pin: Identifier for the pin (on the MicroPython board)
+        :param str uart_tx: Pin name to use for the transmission (``tx``) pin
+            for the |UART|_ bus to use, (e.g. ``'D1'``). Acceptable values vary
+            by board. Check your board's documentation for more info.
+        :param str uart_rx: Pin name to use for the reception (``rx``) pin
+            for the |UART|_ bus to use, (e.g. ``'D0'``). Acceptable values vary
+            by board. Check your board's documentation for more info.
+        :param str rst_pin: Identifier for the pin (on the CircuitPython board)
             connected to the ``RST`` pin of the sound board. Valid identifiers
-            vary by board.
+            vary by board, but should be something like ``'D5'``.
         :param vol: Initial volume level to set. See :attr:`vol` for more info.
         :type vol: int or float
         :param bool alt_get_files: Uses an alternate method to get the list of
@@ -86,18 +83,17 @@ class Soundboard:
         :param bool debug: When not None, will set the debug output flag to the
             boolean value of this argument using the :meth:`toggle_debug`
             method.
-        :param dict uart_kwargs: Additional values passed to the
-            :ref:`UART.init() <upy:machine.UART>` method of the UART bus object.
-            Acceptable values here also vary by board. It is not necessary to
-            include the baud rate among these keyword values, because it will
-            be set to ``SB_BAUD`` before the ``UART.init`` function is called.
+        :param dict uart_kwargs: Additional values passed to the constructor of
+            the |UART|_ object. Acceptable values here also vary by board. It
+            is not necessary to include the baud rate among these keyword
+            values, because it will be set to ``SB_BAUD`` when the |UART|_
+            object is instantiated.
         """
         if debug is not None:
             self.toggle_debug(bool(debug))
 
-        self._uart = UART(uart_id, SB_BAUD)
         uart_kwargs['baudrate'] = SB_BAUD
-        self._uart.init(**uart_kwargs)
+        self._uart = UART(tx=getattr(board, uart_tx), rx=getattr(board, uart_rx), **uart_kwargs)
         self._files = None
         self._sizes = None
         self._lengths = None
@@ -108,10 +104,11 @@ class Soundboard:
         self._reset_attempted = False
 
         # Setup reset pin
-        if BOARD == PYBOARD:
-            self._sb_rst = None if rst_pin is None else Pin(rst_pin, mode=Pin.OPEN_DRAIN, value=1)
-        else:
-            self._sb_rst = None if rst_pin is None else Pin(rst_pin, mode=Pin.IN)
+        self._sb_rst = None
+        if rst_pin in dir(board):
+            # Defaults to IN with no pull
+            self._sb_rst = Dio(getattr(board, rst_pin))
+            self._sb_rst.switch_to_output(value=1, drive_mode=DriveMode.OPEN_DRAIN)
 
         self.vol = vol
 
@@ -120,8 +117,11 @@ class Soundboard:
 
     def _flush_uart_input(self):
         """Read any available data from the UART bus until none is left."""
-        while self._uart.any():
-            self._uart.read()
+        return  # TODO: adding this return statement prevented the hang, but made other commands do weird things
+        # m = self._uart.read()
+        # while m is not None:
+        #     printif(m)  # TODO: Remove this after debugging hanging issue
+        #     m = self._uart.read()
 
     def _send_simple(self, cmd, check=None, strip=True):
         """Send the command, optionally do a check on the output.
@@ -139,10 +139,9 @@ class Soundboard:
         - ``t``: Give current position of playback and total time of track
         - ``s``: Current track size and total size
 
-        :param cmd: Command to send over the UART bus. A newline character will
-            be appended to the command before sending it, so it's not necessary
-            to include one as part of the command.
-        :type cmd: str or bytes
+        :param bytes cmd: Command to send over the UART bus. A newline character
+            will be appended to the command before sending it, so it's not
+            necessary to include one as part of the command.
         :param check: Depending on the type of `check`, has three different
             behaviors. When None (default), the return value will be whatever
             the output from the command was. When a str or bytes, the return
@@ -156,7 +155,9 @@ class Soundboard:
         """
         self._flush_uart_input()
         cmd = cmd.strip()  # Make sure there's not more than one newline
-        self._uart.write('{}\n'.format(cmd))
+        printif('Sending command: {}'.format(cmd))
+        self._uart.write(cmd + b'\n')
+        sleep(0.010)
         if len(cmd) > 1:
             # We need to gobble the return when there's more than one character in the command
             self._uart.readline()
@@ -180,12 +181,11 @@ class Soundboard:
         else:
             self._reset_attempted = True  # We already sent a command successfully
 
-        if isinstance(check, str):
-            return msg.startswith(check.encode())
-        elif isinstance(check, bytes):
-            return msg.startswith(check)
+        # TODO: See if there's a more graceful way to do these checks
+        if isinstance(check, bytes):
+            return msg[:len(check)] == check
         elif check:
-            return msg.startswith(cmd[0].encode())
+            return msg[:1] == cmd[:1]
 
     @property
     def files(self):
@@ -215,37 +215,38 @@ class Soundboard:
 
         self._files = []
         self._sizes = []
-        self._uart.write('L\n')
-        sleep_ms(10)
+        self._uart.write(b'L\n')
+        sleep(0.010)
         i = 0
-        while self._uart.any():
-            msg = self._uart.readline().strip()
+        msg = self._uart.readline()
+        while msg is not None:
+            msg = msg.strip()
             printif(msg)
             fname, fsize = msg.split(b'\t')
-            fname = fname.decode()
             self._files.append(fname)
             self._sizes.append(int(fsize))
             self._track[fname] = i
             i += 1
+            msg = self._uart.readline()
 
     def _get_files_alt(self):
         """Play every track, get info from feedback."""
         vol = self.vol
-        self.vol = 0
         self._files = []
         self._lengths = []
         self._sizes = []
         for i in range(MAX_FILES):
             self.stop()
-            msg = self._send_simple('#{}'.format(i))
-            if msg.startswith(b'NoFile'):
+            self.vol = 0
+            msg = self._send_simple(b'#' + int_to_bytes(i))
+            if msg[:6] == b'NoFile':
                 # Playing track i failed, it must not be a valid track number
                 break
             play, track_num, fname = msg.split(b'\t')
             self._files.append(fname)
             self._track[fname] = i
 
-            sleep_ms(50)
+            sleep(0.050)
             sec = self.track_time()
             if sec:
                 self._lengths.append(sec[1])
@@ -285,7 +286,7 @@ class Soundboard:
         :param int n: Index of a file on the sound board or ``False`` if the
             track number doesn't exist.
         :return: Filename of track ``n``.
-        :rtype: str or bool
+        :rtype: bytes or bool
         """
         try:
             return self.files[n]
@@ -295,7 +296,7 @@ class Soundboard:
     def track_num(self, file_name):
         """Return the track number of the given file name.
 
-        :param str file_name: File name of the track. Should be one of the
+        :param bytes file_name: File name of the track. Should be one of the
             values from the :attr:`files` property.
         :return: The track number of the file name or ``False`` if not found.
         :rtype: int or bool
@@ -310,20 +311,20 @@ class Soundboard:
 
         :param track: The index (``int``) or filename (``str``) of the track to
             play.
-        :type track: int or str
+        :type track: int or bytes
         :return: If the command was successful.
         :rtype: bool
         """
         if isinstance(track, int):
-            cmd = '#'
+            cmd = b'#' + int_to_bytes(track)
             num = track
-        elif isinstance(track, str):
-            cmd = 'P'
+        elif isinstance(track, bytes):
+            cmd = b'P' + track
             num = self.track_num(track)
         else:
             raise TypeError('You must specify a track by its number (int) or its name (str)')
 
-        if self._send_simple('{}{}'.format(cmd, track), 'play'):
+        if self._send_simple(cmd, b'play'):
             self._cur_track = num
             return True
         return False
@@ -383,7 +384,7 @@ class Soundboard:
         global DEBUG
         printif('Turning volume up')
         if vol is None:
-            self._cur_vol = int(self._send_simple('+'))
+            self._cur_vol = int(self._send_simple(b'+'))
             return self._cur_vol
         if vol > MAX_VOL:
             printif('{} is above maximum volume. Setting to {} instead.'.format(vol, MAX_VOL))
@@ -392,7 +393,7 @@ class Soundboard:
         db = DEBUG
         DEBUG = False
         while vol > self._cur_vol:
-            self._cur_vol = int(self._send_simple('+'))
+            self._cur_vol = int(self._send_simple(b'+'))
         DEBUG = db
         return self._cur_vol
 
@@ -406,7 +407,7 @@ class Soundboard:
         global DEBUG
         printif('Turning volume down')
         if vol is None:
-            self._cur_vol = int(self._send_simple('-'))
+            self._cur_vol = int(self._send_simple(b'-'))
             return self._cur_vol
         self._cur_vol = MAX_VOL + 1
         if vol < MIN_VOL:
@@ -415,7 +416,7 @@ class Soundboard:
         db = DEBUG
         DEBUG = False
         while vol < self._cur_vol:
-            self._cur_vol = int(self._send_simple('-'))
+            self._cur_vol = int(self._send_simple(b'-'))
         DEBUG = db
         return self._cur_vol
 
@@ -424,34 +425,34 @@ class Soundboard:
 
         :rtype: bool
         """
-        return self._send_simple('=', True)
+        return self._send_simple(b'=', True)
 
     def unpause(self):
         """Continue playback, return if the command was successful.
 
         :rtype: bool
         """
-        return self._send_simple('>', True)
+        return self._send_simple(b'>', True)
 
     def stop(self):
         """Stop playback, return if the command was successful.
 
         :rtype: bool
         """
-        return self._send_simple('q', True)
+        return self._send_simple(b'q', True)
 
     def track_time(self):
         """Return the current position of playback and total time of track.
 
         :rtype: tuple
         """
-        msg = self._send_simple('t')
+        msg = self._send_simple(b't')
         if not msg:
             return -1, -1
         printif(len(msg))
         if len(msg) != 11:
             return False
-        current, total = msg.decode('utf-8').split(':')
+        current, total = msg.split(b':')
         return int(current), int(total)
 
     def track_size(self):
@@ -464,13 +465,13 @@ class Soundboard:
         :return: Remaining track size and total size
         :rtype: tuple
         """
-        msg = self._send_simple('s')
+        msg = self._send_simple(b's')
         if not msg:
             return -1, -1
         printif(len(msg))
         if len(msg) != 21:
             return False
-        remaining, total = msg.decode('utf-8').split('/')
+        remaining, total = msg.split(b'/')
         return int(remaining), int(total)
 
     def reset(self):
@@ -498,30 +499,21 @@ class Soundboard:
             # Don't attempt to restart the board if the reset pin wasn't initialized
             return False
 
-        if BOARD == PYBOARD:
-            self._sb_rst(0)
-            sleep_ms(10)
-            self._sb_rst(1)
-        else:
-            # Pin should already be in IN mode. This allows us to set the value we want to send, then switch to OUT mode
-            # just long enough for the value to take effect, and finally switch back to IN mode.
-            # self._sb_rst.value(0)
-            self._sb_rst(0)
-            self._sb_rst.mode(Pin.OUT)
-            sleep_ms(10)
-            self._sb_rst.mode(Pin.IN)
+        self._sb_rst.value = 0
+        sleep(0.010)
+        self._sb_rst.value = 1
 
-        sleep_ms(1000)  # Give the board some time to boot
+        sleep(1)  # Give the board some time to boot
         msg = self._uart.readline().strip()
         printif(msg)  # Blank line
 
         msg = self._uart.readline().strip()
         printif(msg)  # Date and name
 
-        if not msg.startswith('Adafruit FX Sound Board'):
+        if not msg[:23] == b'Adafruit FX Sound Board':
             return False
 
-        sleep_ms(250)
+        sleep(0.25)
 
         msg = self._uart.readline().strip()
         printif(msg)  # FAT type
@@ -573,3 +565,28 @@ class Soundboard:
 def printif(*values, **kwargs):
     """Print a message if :obj:`DEBUG` is set to ``True``."""
     print(*values, **kwargs) if DEBUG else None
+
+
+def int_to_bytes(num):
+    """Convert the given integer to bytes.
+
+    For example, giving the int ``1`` would return the byte string ``b'1'``.
+
+    :param int num: The number to convert. Should be non-negative, but works
+        either way.
+    :return: The number as a byte string.
+    :rtype: bytes
+    """
+    if num == 0:
+        return b'0'
+    nums = [b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9']
+    b = b''
+    if num < 0:
+        sign = b'-'
+        num = 0 - num
+    else:
+        sign = b''
+    while num != 0:
+        b = nums[num % 10] + b
+        num //= 10
+    return sign + b
