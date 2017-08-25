@@ -40,7 +40,7 @@ __copyright_ = 'Copyright 2017, Mike Mabey'
 SB_BAUD = 9600  # Baud rate of the sound boards
 MIN_VOL = 0
 MAX_VOL = 204
-MAX_FILES = 25
+CMD_DELAY = 0.010
 DEBUG = False
 
 
@@ -157,7 +157,7 @@ class Soundboard:
         cmd = cmd.strip()  # Make sure there's not more than one newline
         printif('Sending command: {}'.format(cmd))
         self._uart.write(cmd + b'\n')
-        sleep(0.010)
+        sleep(CMD_DELAY)
         if len(cmd) > 1:
             # We need to gobble the return when there's more than one character in the command
             self._uart.readline()
@@ -181,11 +181,10 @@ class Soundboard:
         else:
             self._reset_attempted = True  # We already sent a command successfully
 
-        # TODO: See if there's a more graceful way to do these checks
         if isinstance(check, bytes):
-            return msg[:len(check)] == check
+            return msg.startswith(check)
         elif check:
-            return msg[:1] == cmd[:1]
+            return msg.startswith(cmd[:1])
 
     @property
     def files(self):
@@ -216,7 +215,7 @@ class Soundboard:
         self._files = []
         self._sizes = []
         self._uart.write(b'L\n')
-        sleep(0.010)
+        sleep(CMD_DELAY)
         i = 0
         msg = self._uart.readline()
         while msg is not None:
@@ -235,7 +234,8 @@ class Soundboard:
         self._files = []
         self._lengths = []
         self._sizes = []
-        for i in range(MAX_FILES):
+        i = 0
+        while True:
             self.stop()
             self.vol = 0
             msg = self._send_simple(b'#' + int_to_bytes(i))
@@ -257,6 +257,7 @@ class Soundboard:
                 self._sizes.append(size[1])
             else:
                 self._sizes.append(0)
+            i += 1
 
         self.vol = vol
 
