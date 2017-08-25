@@ -43,6 +43,8 @@ MAX_VOL = 204
 CMD_DELAY = 0.010
 DEBUG = False
 
+SCENARIO = 0
+
 
 class Soundboard:
     """Control an Adafruit Sound Board via UART.
@@ -117,11 +119,13 @@ class Soundboard:
 
     def _flush_uart_input(self):
         """Read any available data from the UART bus until none is left."""
-        return  # TODO: adding this return statement prevented the hang, but made other commands do weird things
-        # m = self._uart.read()
-        # while m is not None:
-        #     printif(m)  # TODO: Remove this after debugging hanging issue
-        #     m = self._uart.read()
+        if SCENARIO in (0, 1):
+            return  # TODO: adding this return statement prevented the hang, but made other commands do weird things
+        elif SCENARIO in (2, 3):
+            m = self._uart.read()
+            while m is not None:
+                printif(m)  # TODO: Remove this after debugging hanging issue
+                m = self._uart.read()
 
     def _send_simple(self, cmd, check=None, strip=True):
         """Send the command, optionally do a check on the output.
@@ -162,7 +166,10 @@ class Soundboard:
             # We need to gobble the return when there's more than one character in the command
             self._uart.readline()
         try:
-            msg = self._uart.readline()
+            if SCENARIO in (1, 2):
+                msg = self._uart.readline()
+            elif SCENARIO in (0, 3):
+                msg = self._uart.read()
             if strip:
                 msg = msg.strip()
             assert isinstance(msg, bytes)
