@@ -102,3 +102,7 @@ ENV/
 .idea
 *.bak
 _build
+
+# Added by me
+*.swp
+*.mpy

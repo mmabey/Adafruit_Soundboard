@@ -37,13 +37,31 @@ __author__ = 'Mike Mabey'
 __license__ = 'MIT'
 __copyright_ = 'Copyright 2017, Mike Mabey'
 
-SB_BAUD = 9600  # Baud rate of the sound boards
-MIN_VOL = 0
-MAX_VOL = 204
-CMD_DELAY = 0.010
+MIN_VOL = 0  #: Minimum volume level.
+MAX_VOL = 204  #: Maximum volume level.
+
+#: The baud rate for the sound boards. This shouldn't ever change, since all
+#: of the sound board models use the same value.
+#:
+#: .. seealso::
+#:
+#:    `Adafruit Audio FX Sound Board Tutorial <https://learn.adafruit.com/adafruit-audio-fx-sound-board>`_
+#:    Adafruit's tutorial on the sound boards.
+SB_BAUD = 9600
+
+#: A flag for turning on/off debug messages.
+#:
+#: .. seealso:: :meth:`Soundboard.toggle_debug`, :func:`printif`
 DEBUG = False
 
-SCENARIO = 0
+#: Seconds to delay after sending a command.
+CMD_DELAY = 0.010
+
+#: Default UART command timeout in milliseconds. This differs from the default
+#: timeout in the |UART|_ class, which is 1000 (1 second). Setting a low
+#: timeout greatly improves the performance in the absence of an ``any()``
+#: method in |UART|_.
+UART_TIMEOUT = 30
 
 
 class Soundboard:
@@ -66,7 +84,8 @@ class Soundboard:
     parameter.
     """
 
-    def __init__(self, uart_tx, uart_rx, rst_pin=None, *, vol=None, alt_get_files=False, debug=None, **uart_kwargs):
+    def __init__(self, uart_tx, uart_rx, rst_pin=None, *, vol=None, orig_get_files=False, debug=None,
+                 timeout=UART_TIMEOUT, **uart_kwargs):
         """
         :param str uart_tx: Pin name to use for the transmission (``tx``) pin
             for the |UART|_ bus to use, (e.g. ``'D1'``). Acceptable values vary
@@ -79,22 +98,34 @@ class Soundboard:
             vary by board, but should be something like ``'D5'``.
         :param vol: Initial volume level to set. See :attr:`vol` for more info.
         :type vol: int or float
-        :param bool alt_get_files: Uses an alternate method to get the list of
+        :param bool orig_get_files: Uses the original method to get the list of
             track file names. See :meth:`use_alt_get_files` method for more
             info.
         :param bool debug: When not None, will set the debug output flag to the
             boolean value of this argument using the :meth:`toggle_debug`
             method.
+        :param int timeout: Timeout parameter passed to the |UART|_ object,
+            which is in milliseconds. Should be an :class:`int` no greater than
+            1000. If not an `int`, will fall back to the default value specified
+            in this method's signature, :data:`UART_TIMEOUT`. If an `int` but
+            not in the range [1, 1000], will fall back to the |UART|_ class's
+            default of 1000.
         :param dict uart_kwargs: Additional values passed to the constructor of
             the |UART|_ object. Acceptable values here also vary by board. It
             is not necessary to include the baud rate among these keyword
-            values, because it will be set to ``SB_BAUD`` when the |UART|_
+            values, because it will be set to :data:`SB_BAUD` when the |UART|_
             object is instantiated.
         """
         if debug is not None:
             self.toggle_debug(bool(debug))
 
+        if not isinstance(timeout, int):
+            timeout = UART_TIMEOUT
+        elif timeout > 1000 or timeout < 1:
+            timeout = 1000
+
         uart_kwargs['baudrate'] = SB_BAUD
+        uart_kwargs['timeout'] = timeout
         self._uart = UART(tx=getattr(board, uart_tx), rx=getattr(board, uart_rx), **uart_kwargs)
         self._files = None
         self._sizes = None
@@ -114,18 +145,14 @@ class Soundboard:
 
         self.vol = vol
 
-        if alt_get_files:
+        if not orig_get_files:
             self.use_alt_get_files()
 
     def _flush_uart_input(self):
         """Read any available data from the UART bus until none is left."""
-        if SCENARIO in (0, 1):
-            return  # TODO: adding this return statement prevented the hang, but made other commands do weird things
-        elif SCENARIO in (2, 3):
+        m = self._uart.read()
+        while m is not None:
             m = self._uart.read()
-            while m is not None:
-                printif(m)  # TODO: Remove this after debugging hanging issue
-                m = self._uart.read()
 
     def _send_simple(self, cmd, check=None, strip=True):
         """Send the command, optionally do a check on the output.
@@ -146,15 +173,15 @@ class Soundboard:
         :param bytes cmd: Command to send over the UART bus. A newline character
             will be appended to the command before sending it, so it's not
             necessary to include one as part of the command.
-        :param check: Depending on the type of `check`, has three different
-            behaviors. When None (default), the return value will be whatever
-            the output from the command was. When a str or bytes, the return
-            value will be True/False, indicating whether the command output
-            starts with the value in `check`. When it otherwise evaluates to
-            True, return value will be True/False, indicating the output
-            started with the first character in `cmd`.
+        :param check: Depending on the type of ``check``, has three different
+            behaviors. When `None` (default), the return value will be whatever
+            the output from the command was. When a `str` or `bytes`, the return
+            value will be `True`/`False`, indicating whether the command output
+            starts with the value in ``check``. When it otherwise evaluates to
+            `True`, return value will be `True`/`False`, indicating the output
+            started with the first character in ``cmd``.
         :type check: str or bytes or None or bool
-        :return: Varies depending on the value of `check`.
+        :return: Varies depending on the value of ``check``.
         :rtype: bytes or bool
         """
         self._flush_uart_input()
@@ -166,10 +193,7 @@ class Soundboard:
             # We need to gobble the return when there's more than one character in the command
             self._uart.readline()
         try:
-            if SCENARIO in (1, 2):
-                msg = self._uart.readline()
-            elif SCENARIO in (0, 3):
-                msg = self._uart.read()
+            msg = self._uart.readline()
             if strip:
                 msg = msg.strip()
             assert isinstance(msg, bytes)
@@ -195,17 +219,25 @@ class Soundboard:
 
     @property
     def files(self):
-        """Return a ``list`` of the files on the sound board.
+        """Return a :class:`list` of the files on the sound board.
 
-        :rtype: list
+        .. warning::
+
+           The filenames are *always* of type :class:`bytes`, not :class:`str`.
+
+        :rtype: list(bytes)
         """
         if self._files is None:
             self._get_files()
         return self._files
 
+    @files.deleter
+    def files(self):
+        self._files = None
+
     @property
     def sizes(self):
-        """Return a ``list`` of the files' sizes on the sound board.
+        """Return a :class:`list` of the files' sizes on the sound board.
 
         .. seealso:: :meth:`use_alt_get_files`
 
@@ -270,7 +302,7 @@ class Soundboard:
 
     @property
     def lengths(self):
-        """Return a ``list`` of the track lengths in seconds.
+        """Return a :class:`list` of the track lengths in seconds.
 
         .. note::
 
@@ -291,7 +323,7 @@ class Soundboard:
     def file_name(self, n):
         """Return the name of track ``n``.
 
-        :param int n: Index of a file on the sound board or ``False`` if the
+        :param int n: Index of a file on the sound board or `False` if the
             track number doesn't exist.
         :return: Filename of track ``n``.
         :rtype: bytes or bool
@@ -306,7 +338,7 @@ class Soundboard:
 
         :param bytes file_name: File name of the track. Should be one of the
             values from the :attr:`files` property.
-        :return: The track number of the file name or ``False`` if not found.
+        :return: The track number of the file name or `False` if not found.
         :rtype: int or bool
         """
         try:
@@ -314,11 +346,11 @@ class Soundboard:
         except KeyError:
             return False
 
-    def play(self, track=None):
+    def play(self, track):
         """Play a track on the board.
 
-        :param track: The index (``int``) or filename (``str``) of the track to
-            play.
+        :param track: The index (:class:`int`) or filename (:class:`bytes`) of
+            the track to play.
         :type track: int or bytes
         :return: If the command was successful.
         :rtype: bool
@@ -330,7 +362,7 @@ class Soundboard:
             cmd = b'P' + track
             num = self.track_num(track)
         else:
-            raise TypeError('You must specify a track by its number (int) or its name (str)')
+            raise TypeError('You must specify a track by its number (int) or its name (bytes)')
 
         if self._send_simple(cmd, b'play'):
             self._cur_track = num
@@ -340,9 +372,9 @@ class Soundboard:
     def play_now(self, track):
         """Play a track on the board now, stopping current track if necessary.
 
-        :param track: The index (``int``) or filename (``str``) of the track to
-            play.
-        :type track: int or str
+        :param track: The index (:class:`int`) or filename (:class:`bytes`) of
+            the track to play.
+        :type track: int or bytes
         :return: If the command was successful.
         :rtype: bool
         """
@@ -357,9 +389,9 @@ class Soundboard:
         """Current volume.
 
         This is implemented as a class property, so you can get and set its
-        value directly. When setting a new volume, you can use an ``int`` or a
-        ``float`` (assuming your board supports floats). When setting to an
-        ``int``, it should be in the range of 0-204. When set to a ``float``,
+        value directly. When setting a new volume, you can use an `int` or a
+        `float` (assuming your board supports floats). When setting to an
+        `int`, it should be in the range of 0-204. When set to a `float`,
         the value will be interpreted as a percentage of :obj:`MAX_VOL`.
 
         :rtype: int
@@ -385,7 +417,7 @@ class Soundboard:
     def vol_up(self, vol=None):
         """Turn volume up by 2 points, return current volume level [0-204].
 
-        :param int vol: Target volume. When not ``None``, volume will be turned
+        :param int vol: Target volume. When not `None`, volume will be turned
             up to be greater than or equal to this value.
         :rtype: int
         """
@@ -399,16 +431,20 @@ class Soundboard:
             vol = MAX_VOL
         self._cur_vol = MIN_VOL - 1
         db = DEBUG
-        DEBUG = False
-        while vol > self._cur_vol:
-            self._cur_vol = int(self._send_simple(b'+'))
+        DEBUG = False  # Temporarily turn off debug messages
+        try:
+            while vol > self._cur_vol:
+                self._cur_vol = int(self._send_simple(b'+'))
+        except Exception:
+            DEBUG = db
+            raise
         DEBUG = db
         return self._cur_vol
 
     def vol_down(self, vol=None):
         """Turn volume down by 2 points, return current volume level [0-204].
 
-        :param int vol: Target volume. When not ``None``, volume will be turned
+        :param int vol: Target volume. When not `None`, volume will be turned
             down to be less than or equal to this value.
         :rtype: int
         """
@@ -422,9 +458,13 @@ class Soundboard:
             printif('{} is below minimum volume. Setting to {} instead.'.format(vol, MIN_VOL))
             vol = MIN_VOL
         db = DEBUG
-        DEBUG = False
-        while vol < self._cur_vol:
-            self._cur_vol = int(self._send_simple(b'-'))
+        DEBUG = False  # Temporarily turn off debug messages
+        try:
+            while vol < self._cur_vol:
+                self._cur_vol = int(self._send_simple(b'-'))
+        except Exception:
+            DEBUG = db
+            raise
         DEBUG = db
         return self._cur_vol
 
@@ -447,7 +487,9 @@ class Soundboard:
 
         :rtype: bool
         """
-        return self._send_simple(b'q', True)
+        if not self._send_simple(b'q', True):
+            return False
+        self._uart.readline()  # Should be "done\r\r\n"
 
     def track_time(self):
         """Return the current position of playback and total time of track.
@@ -508,7 +550,7 @@ class Soundboard:
             return False
 
         self._sb_rst.value = 0
-        sleep(0.010)
+        sleep(CMD_DELAY)
         self._sb_rst.value = 1
 
         sleep(1)  # Give the board some time to boot
@@ -520,8 +562,6 @@ class Soundboard:
 
         if not msg[:23] == b'Adafruit FX Sound Board':
             return False
-
-        sleep(0.25)
 
         msg = self._uart.readline().strip()
         printif(msg)  # FAT type
@@ -544,13 +584,14 @@ class Soundboard:
         tracks using their track numbers and gets the filename and size from
         the output of the play command.
 
-        :param bool now: When set to ``True``, the alternate method of getting
+        :param bool now: When set to `True`, the alternate method of getting
             the files list will be called immediately. Otherwise, the list of
             files will be populated the next time the :attr:`files` property is
             accessed (lazy loading).
         :rtype: None
         """
         self._get_files = self._get_files_alt
+        del self.files
         if now:
             self._get_files()
 
@@ -558,9 +599,9 @@ class Soundboard:
     def toggle_debug(debug=None):
         """Turn on/off :obj:`DEBUG` flag.
 
-        :param debug: If None, the :obj:`DEBUG` flag will be toggled to have the
-            value opposite of its current value. Otherwise, :obj:`DEBUG` will be
-            set to the boolean value of ``debug``.
+        :param debug: If `None`, the :obj:`DEBUG` flag will be toggled to have
+            the value opposite of its current value. Otherwise, :obj:`DEBUG`
+            will be set to the boolean value of ``debug``.
         :rtype: None
         """
         global DEBUG
@@ -571,7 +612,7 @@ class Soundboard:
 
 
 def printif(*values, **kwargs):
-    """Print a message if :obj:`DEBUG` is set to ``True``."""
+    """Print a message if :obj:`DEBUG` is set to `True`."""
     print(*values, **kwargs) if DEBUG else None
 
 

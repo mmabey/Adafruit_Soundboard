@@ -1,31 +1,15 @@
-=====================
-`adafruit_soundboard`
-=====================
+=========================
+`adafruit_soundboard` API
+=========================
 
 .. automodule:: adafruit_soundboard
+   :members: MIN_VOL, MAX_VOL, SB_BAUD, DEBUG, CMD_DELAY, UART_TIMEOUT
+
+.. autoclass:: adafruit_soundboard.Soundboard
    :members:
 
-   .. py:data:: SB_BAUD
+   .. automethod:: adafruit_soundboard.Soundboard._send_simple
 
-      The baud rate for the soundboards. This shouldn't ever change, since all
-      of the soundboard models use the same value.
+.. autofunction:: adafruit_soundboard.printif
 
-      .. seealso::
-
-         `Adafruit Audio FX Sound Board Tutorial <https://learn.adafruit.com/adafruit-audio-fx-sound-board>`_
-            Adafruit's tutorial on the soundboards.
-
-   .. py:data:: MIN_VOL
-   .. py:data:: MAX_VOL
-
-      Minimum volume is 0, maximum is 204.
-
-   .. py:data:: MAX_FILES
-
-      The Arduino version of this library defines the max number of files to be 25.
-
-   .. py:data:: DEBUG
-
-      A flag for turning on/off debug messages.
-
-      .. seealso:: :meth:`Soundboard.toggle_debug`, :func:`printif`
+.. autofunction:: adafruit_soundboard.int_to_bytes
