@@ -3,12 +3,6 @@ Adafruit Soundboard Library
 
 |ports| |docs| |version| |ci| |license_type|
 
-.. toctree::
-   :maxdepth: 2
-   :hidden:
-
-   Home <self>
-   api
 
 The `Adafruit Soundboards <https://learn.adafruit.com/adafruit-audio-fx-sound-board>`_ are an easy way to add sound to
 your maker project, but the `library <https://github.com/adafruit/Adafruit_Soundboard_library>`_ provided by Adafruit
@@ -178,6 +172,14 @@ License
 -------
 
 This project is licensed under the `MIT License <https://github.com/mmabey/Adafruit_Soundboard/blob/master/LICENSE>`_.
+
+
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+
+   Home <self>
+   api
 
 
 .. |ports| image:: https://img.shields.io/badge/CircuitPython%20Version-2.0-blue.svg
