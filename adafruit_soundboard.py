@@ -61,7 +61,7 @@ CMD_DELAY = 0.010
 #: timeout in the |UART|_ class, which is 1000 (1 second). Setting a low
 #: timeout greatly improves the performance in the absence of an ``any()``
 #: method in |UART|_.
-UART_TIMEOUT = 30
+UART_TIMEOUT = 0.030
 
 
 class Soundboard:
@@ -121,8 +121,8 @@ class Soundboard:
 
         if not isinstance(timeout, int):
             timeout = UART_TIMEOUT
-        elif timeout > 1000 or timeout < 1:
-            timeout = 1000
+        elif timeout > 1 or timeout < 0.001:
+            timeout = 1
 
         uart_kwargs['baudrate'] = SB_BAUD
         uart_kwargs['timeout'] = timeout
